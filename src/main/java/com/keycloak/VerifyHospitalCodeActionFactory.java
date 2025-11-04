@@ -6,7 +6,10 @@ import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 
-public class CustomPasswordActionFactory implements RequiredActionFactory {
+public class VerifyHospitalCodeActionFactory implements RequiredActionFactory {
+
+    public static final String PROVIDER_ID = "verify-hospital-code";
+
     @Override
     public String getDisplayText() {
         return "Custom Password Flow with Code";
@@ -14,7 +17,7 @@ public class CustomPasswordActionFactory implements RequiredActionFactory {
 
     @Override
     public RequiredActionProvider create(KeycloakSession keycloakSession) {
-        return new CustomPasswordActionProvider();
+        return new VerifyHospitalCodeActionProvider();
     }
 
     @Override
@@ -34,6 +37,6 @@ public class CustomPasswordActionFactory implements RequiredActionFactory {
 
     @Override
     public String getId() {
-        return "custom-password-action";
+        return PROVIDER_ID;
     }
 }
