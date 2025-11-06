@@ -44,9 +44,8 @@ public class VerifyHospitalCodeActionProvider implements RequiredActionProvider 
 
         // 3. Validation Logic
         if (correctCode == null || submittedCode == null ||!correctCode.equals(submittedCode)) {
-            // FAILURE: Re-issue the challenge with an error message.
             LoginFormsProvider form = context.form()
-                    .setError(ERROR_MESSAGE_KEY); // This key is resolved by the theme's messages_en.properties
+                    .setError(ERROR_MESSAGE_KEY);
 
             Response challenge = form.createForm(FTL_PATH);
             context.challenge(challenge);
