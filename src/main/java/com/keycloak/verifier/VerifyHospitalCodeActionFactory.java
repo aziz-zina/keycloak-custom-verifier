@@ -1,4 +1,4 @@
-package com.keycloak;
+package com.keycloak.verifier;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.RequiredActionFactory;

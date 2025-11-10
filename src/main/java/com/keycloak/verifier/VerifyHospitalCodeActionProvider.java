@@ -1,4 +1,4 @@
-package com.keycloak;
+package com.keycloak.verifier;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
@@ -6,26 +6,26 @@ import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.UserModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.UUID;
 
 public class VerifyHospitalCodeActionProvider implements RequiredActionProvider {
     private static final String FTL_PATH = "verify-hospital-code.ftl";
     private static final String FORM_FIELD_NAME = "hospital_code";
     private static final String USER_ATTRIBUTE_NAME = "hospital_code";
     private static final String ERROR_MESSAGE_KEY = "invalidHospitalCodeMessage";
+    private static final Logger log = LoggerFactory.getLogger(VerifyHospitalCodeActionProvider.class);
 
     /**
      * This method is called to display the verification form to the user.
      */
     @Override
     public void requiredActionChallenge(RequiredActionContext context) {
-        // This creates a form builder and sets the action URL to point back to this provider
         LoginFormsProvider form = context.form();
-
-        // This tells Keycloak to render the FTL template.
-        // This FTL name is the "contract" Keycloakify will use.
         Response challenge = form.createForm(FTL_PATH);
-
-        // This sends the challenge (the HTML page) to the user's browser.
         context.challenge(challenge);
     }
 
@@ -34,15 +34,11 @@ public class VerifyHospitalCodeActionProvider implements RequiredActionProvider 
      */
     @Override
     public void processAction(RequiredActionContext context) {
-        // 1. Get Form Data
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
         String submittedCode = formData.getFirst(FORM_FIELD_NAME);
-
-        // 2. Get User Attribute
         UserModel user = context.getUser();
         String correctCode = user.getFirstAttribute(USER_ATTRIBUTE_NAME);
-
-        // 3. Validation Logic
+        log.info("Verifying hospital code {} for user {}", submittedCode, user.getEmail());
         if (correctCode == null || submittedCode == null ||!correctCode.equals(submittedCode)) {
             LoginFormsProvider form = context.form()
                     .setError(ERROR_MESSAGE_KEY);
@@ -52,16 +48,33 @@ public class VerifyHospitalCodeActionProvider implements RequiredActionProvider 
             return;
         }
 
-        // 4. SUCCESS:
-        user.removeRequiredAction(VerifyHospitalCodeActionFactory.PROVIDER_ID);
+        try {
+            String userIdString = user.getId();
+            UUID userUuid = UUID.fromString(userIdString);
+            int statusCode = RestClient.assignDoctorToHospital(userUuid);
+            if (statusCode >= 200 && statusCode < 300) {
+                log.info("Successfully assigned doctor to hospital for user {}", user.getEmail());
+                user.removeRequiredAction(VerifyHospitalCodeActionFactory.PROVIDER_ID);
+                user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD.name());
+                context.success();
 
-        // Second, add the *next* action in the chain: UPDATE_PASSWORD
-        user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD.name());
+            } else {
+                log.error("Failed to assign doctor. API returned status {}. User: {}",
+                        statusCode, user.getEmail());
+                LoginFormsProvider form = context.form()
+                        .setError("Failed to assign hospital. Please try again or contact support.");
+                Response challenge = form.createForm(FTL_PATH);
+                context.challenge(challenge);
+            }
 
-        // Mark this custom action as complete [12, 18]
-        // Keycloak will automatically see the new UPDATE_PASSWORD action
-        // and redirect the user to that page.
-        context.success();
+        } catch (IOException | IllegalArgumentException e) {
+            log.error("Failed to call assignDoctorToHospital for user {}: {}",
+                    user.getEmail(), e.getMessage(), e);
+            LoginFormsProvider form = context.form()
+                    .setError("An unexpected error occurred. Please try again.");
+            Response challenge = form.createForm(FTL_PATH);
+            context.challenge(challenge);
+        }
     }
 
     /**
