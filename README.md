@@ -110,6 +110,10 @@ curl -X PUT "http://localhost:8080/admin/realms/{realm}/users/{user-id}/required
 5. On failure:
    - Error message is displayed
    - User can retry
+  
+  #### 🧭 Flow Diagram
+  <img width="937" height="437" alt="diagram-export-11-11-2025-1_59_59-PM" src="https://github.com/user-attachments/assets/ea4835ee-2caa-489b-8683-bb78d6f1d3b8" />
+
 
 ## 🏗️ Architecture
 
